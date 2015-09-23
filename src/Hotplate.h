@@ -11,6 +11,8 @@
 
 #define EPSILON 0.1
 #define THRESHOLD 50
+#define TRUE 1
+#define FALSE 0
 
 using namespace std;
 
@@ -116,20 +118,20 @@ private:
 		}
 
 		void createSteadyState() {
+			ofstream outfile;
+			outfile.open("aboveThreshold.csv");
 			int steps = 0;
 			double time1, time2, time3;
-			while (!isPlateSteady() && steps < 500) {
-				// time1 = getTime();
+			while (!isPlateSteady() && steps < 120) {
 				steps++;
 				for (int i = 1; i < _length-1; i++) {
 					for (int j = 1; j < _length-1; j++) {
-						// time2 = getTime();
-						calcNewCellValue(i, j);
-						// time3 = getTime();
+						if (!(_hotplate->_locked_plate[i][j])) {
+							calcNewCellValue(i, j);
+						}
 					}
-					// cout << "\n";
 				}
-				_hotplate->initLockedCells(_plate);
+				outfile << getNumOver() << ",\n";
 				swapPlates();
 			}
 			if (steps % 2 == 1) swapPlates();
@@ -162,61 +164,54 @@ public:
 		outfile.close();
 	}
 
-	void initLockedCells(float** dbl_array) {
-		// Row 400 columns 0 through 330 are fixed at 100 degrees
-		for (int i = 0; i <= 330; i++) {
-			dbl_array[400][i] = 100;
-		}
-		// A cell at row 200, column 500 also is fixed at 100 degrees
-		dbl_array[200][500] = 100;
-	}
-
-	void initLockedCellsArray(int length) {
-		_locked_plate = new char*[length];
-		for (int i = 0; i < length; i++) {
-			_locked_plate[i] = new char[length];
-			for (int j = 0; j < length; j++) {
-				_locked_plate[i][j] = 0;
+	void initLockedCells() {
+		int row, col = 0;
+		// Every 20 rows = 100
+		for(row = 0; row < _length; row++) {
+			if((row % 20) == 0) {
+				for(col = 0; col < _length; col++) {
+					_plate[row][col] = 100;
+					_locked_plate[row][col] = TRUE;
+				}
 			}
 		}
-
-		// Row 400 columns 0 through 330 are fixed at 100 degrees
-		for (int i = 0; i <= 330; i++) {
-			_locked_plate[400][i] = 1;
+		// Every 20 cols = 0
+		for(col = 0; col < _length; col++) {
+			if((col % 20) == 0) {
+				for(row = 0; row < _length; row++) {
+					_plate[row][col] = 0;
+					_locked_plate[row][col] = TRUE;
+				}
+			}
 		}
-		// A cell at row 200, column 500 also is fixed at 100 degrees
-		_locked_plate[200][500] = 1;
+	}
+
+	void initRegularCells() {
+		for (int i = 0; i < _length; i++) {
+			float* row = new float[_length];
+			_locked_plate[i] = new char[_length];
+			for (int j = 0; j < _length; j++) {
+				row[j] = 50;
+				_locked_plate[i][j] = FALSE;
+			}
+			_plate[i] = row;
+		}
 	}
 
 	Hotplate(int length) {
 		_length = length;
 		_plate = new float*[_length];
-		initLockedCellsArray(_length);
+		_locked_plate = new char*[_length];
 
-		for (int i = 0; i < _length; i++) {
-			float* row = new float[_length];
-			for (int j = 0; j < _length; j++) {
-				float temp;
-				if (i == _length - 1) {
-					temp = 100;
-				}
-				else if (i == 0 || j == 0 || j == _length - 1) {
-					temp = 0;
-				}
-				else {
-					temp = 50;
-				}
-				row[j] = temp;
-			}
-			_plate[i] = row;
-		}
-		initLockedCells(_plate);
+		initRegularCells();
+		initLockedCells();
 		// cout << toString() << "\n";
 	}
 
 	~Hotplate() {
 		for (int i = 0; i < _length; i++) {
 			delete _plate[i];
+			delete _locked_plate[i];
 		}
 		delete _plate;
 		delete _locked_plate;
@@ -226,4 +221,9 @@ public:
 		SteadyStateCreater creater(this);
 		creater.createSteadyState();
 	}
+
+
+	
+
+
 };
