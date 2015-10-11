@@ -2,15 +2,11 @@
 
 all: project
 
-project: cpp c
+project: seq
 
-cpp: src/*.cpp src/*.h
-	@echo "Compiling C++ project"
-	@g++ -O3 src/*.cpp -o bin/project_cpp.o
-
-c: src/*.c src/*.h
-	@echo "Compiling C project"
-	@gcc -std=c99 -O3 src/*.c -o bin/project_c.o
+seq: src/seqMain.cpp
+	@echo "Compiling Sequential project"
+	@g++ -O3 src/seqMain.cpp -o bin/sequential.o
 
 clean:
 	@rm -f bin/*
