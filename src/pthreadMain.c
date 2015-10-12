@@ -282,6 +282,8 @@ void setUp() {
 }
 
 int main(int argc, char* argv[]) {
+	if (argc < 2) { printf("Include the number of threads you want as the first parameter"); return 0; }
+
 	double time_b = getTime();
 	_nthreads = atoi(argv[1]);
 
@@ -298,3 +300,17 @@ int main(int argc, char* argv[]) {
 	printf("Time: %lf seconds\n", time_e - time_b);
 	return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

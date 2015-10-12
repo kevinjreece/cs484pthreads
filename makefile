@@ -2,11 +2,15 @@
 
 all: project
 
-project: seq
+project: seq pthread
 
-seq: src/seqMain.cpp
+seq: src/seqMain.c
 	@echo "Compiling Sequential project"
-	@g++ -O3 src/seqMain.cpp -o bin/sequential.o
+	@gcc -std=c99 -O3 src/seqMain.c -o bin/seqMain.o
+
+pthread: src/pthreadMain.c
+	@echo "Compiling Pthread project"
+	@gcc -lpthread -std=c99 -O3 src/pthreadMain.c -o bin/pthreadMain.o
 
 clean:
 	@rm -f bin/*

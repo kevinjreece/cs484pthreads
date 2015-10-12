@@ -7,7 +7,7 @@
 
 #define EPSILON 0.1
 #define THRESHOLD 50
-#define LENGTH 24
+#define LENGTH 324
 #define true 1
 #define false 0
 
