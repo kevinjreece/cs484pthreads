@@ -9,8 +9,6 @@
 #define EPSILON 0.1
 #define THRESHOLD 50
 #define LENGTH 16384
-#define true 1
-#define false 0
 
 hotplate _plate;
 float** _curr_plate;
@@ -19,6 +17,7 @@ bool** _lock_plate;
 
 int getNumOver() {
 	int num = 0;
+	// #pragma omp parallel for
 	int i, j;
 	for (i = 0; i < LENGTH; i++) {
 		for (j = 0; j < LENGTH; j++) {
@@ -47,12 +46,13 @@ void calcNewCellValue(int row, int col) {
 	float down = _prev_plate[row+1][col];
 	float val = (up + left + right + down + (center * 4.0f)) / 8.0f;
 	_curr_plate[row][col] = val;
+	// cout << (int)val << "\t";
 }
 
 bool isPlateSteady() {
 	int i, j;
-	for (i = 1; i < LENGTH - 1; i++) {
-		for (j = 1; j < LENGTH - 1; j++) {
+	for (i = 0; i < LENGTH-1; i++) {
+		for (j = 0; j < LENGTH-1; j++) {
 			if (!(_lock_plate[i][j]) && !isCellSteady(i, j)) {
 				return false;
 			}
@@ -68,14 +68,14 @@ void swapPlates() {
 }
 
 void createSteadyState() {
-	// printf("createSteadyState\n");
 	int steps = 0;
 	bool is_steady = false;
+
 	while (!is_steady && steps < 500) {
 		steps++;
-		int i, j;
-		for (i = 1; i < LENGTH - 1; i++) {
-			for (j = 1; j < LENGTH - 1; j++) {
+		#pragma omp parallel for
+		for (int i = 1; i < LENGTH-1; i++) {
+			for (int j = 1; j < LENGTH-1; j++) {
 				if (!(_lock_plate[i][j])) {
 					calcNewCellValue(i, j);
 				}
@@ -102,10 +102,6 @@ void printToFile(char* filename) {
 	fclose(fp);
 }
 
-void cleanUpMemory() {
-	freeHotplate(&_plate);
-}
-
 void setUp() {
 	_plate = (hotplate) { .size = LENGTH };
 	initHotplate(&_plate);
@@ -114,14 +110,16 @@ void setUp() {
 	_lock_plate = _plate.lock_plate;
 }
 
+void cleanUpMemory() {
+	freeHotplate(&_plate);
+}
+
 int main(int argc, char* argv[]) {
 	double time_b = getTime();
 
 	// cout << plate.toString();
 	setUp();
-	// printPlate();
 	createSteadyState();
-	// printPlate();
 	cleanUpMemory();
 	// cout << plate.toString() << "\n";
 	// printToFile("c.csv");

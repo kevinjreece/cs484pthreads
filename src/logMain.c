@@ -1,3 +1,7 @@
+#define __KLOGB__
+
+#define MAX_THREADS 64
+
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -9,11 +13,11 @@
 
 #include "time.h"
 #include "hotplate.h"
+#include "mylib_barrier.h"
 
 #define EPSILON 0.1
 #define THRESHOLD 50
 #define LENGTH 16384
-#define MAX_THREADS 64
 
 hotplate _plate;
 float** _curr_plate;
@@ -25,19 +29,20 @@ int _nthreads;
 int _iterations;
 bool _is_steady;
 int _section_size;
-FILE* fp;
 
 pthread_t threadstructs[MAX_THREADS];
 pthread_mutex_t _is_steady_lock;
-pthread_barrier_t _barr;
-const pthread_barrierattr_t *restrict _attr = 0;
+mylib_logbarrier_t _barr;
 
 int getNumOverInPlate(float threshold) {
-
 	int num = 0;
 	int i, j;
-	for (i = 0; i < _nthreads; i++) {
-		num += _above_threshold[i];
+	for (i = 0; i < LENGTH; i++) {
+		for (j = 0; j < LENGTH; j++) {
+			if (_curr_plate[i][j] > threshold) {
+				num++;
+			}
+		}
 	}
 	return num;
 }
@@ -124,7 +129,6 @@ void prepNextIteration() {
 	_iterations++;
 	_is_steady = isPlateSteady();
 	if (!_is_steady) swapPlates();
-	fprintf(fp, "%d,\n", getNumOverInPlate(THRESHOLD));
 }
 
 void* createSteadyStateSection(void* arg) {
@@ -136,9 +140,9 @@ void* createSteadyStateSection(void* arg) {
 		_is_section_steady[tid] = isSectionSteady(tid);
 		_above_threshold[tid] = getNumOverInSection(tid, THRESHOLD);
 
-		pthread_barrier_wait(&_barr);
+		mylib_logbarrier_wait(_barr, _nthreads, tid);
 		if (!tid) prepNextIteration();
-		pthread_barrier_wait(&_barr);
+		mylib_logbarrier_wait(_barr, _nthreads, tid);
 	}
 	
 	return 0;
@@ -154,6 +158,7 @@ void createSteadyState() {
 	for (thread = 0; thread < _nthreads; thread++) {
 		pthread_join(threadstructs[thread], 0);
 	}
+	
 
 	if (_iterations % 2 == 1) swapPlates();
 	printf("Steps: %d\n", _iterations);
@@ -186,10 +191,6 @@ void cleanUpMemory() {
 
 	free(_is_section_steady);
 	free(_above_threshold);
-
-	pthread_barrier_destroy(&_barr);
-
-	fclose(fp);
 }
 
 void setUp() {
@@ -204,9 +205,7 @@ void setUp() {
 	_section_size = LENGTH / _nthreads;
 	initBarrierArrays();
 
-	pthread_barrier_init(&_barr, _attr, _nthreads);
-
-	fp = fopen("aboveThreshold.csv", "w");
+	mylib_init_barrier(_barr);
 }
 
 int main(int argc, char* argv[]) {

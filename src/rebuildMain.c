@@ -25,7 +25,6 @@ int _nthreads;
 int _iterations;
 bool _is_steady;
 int _section_size;
-FILE* fp;
 
 pthread_t threadstructs[MAX_THREADS];
 pthread_mutex_t _is_steady_lock;
@@ -33,11 +32,14 @@ pthread_barrier_t _barr;
 const pthread_barrierattr_t *restrict _attr = 0;
 
 int getNumOverInPlate(float threshold) {
-
 	int num = 0;
 	int i, j;
-	for (i = 0; i < _nthreads; i++) {
-		num += _above_threshold[i];
+	for (i = 0; i < LENGTH; i++) {
+		for (j = 0; j < LENGTH; j++) {
+			if (_curr_plate[i][j] > threshold) {
+				num++;
+			}
+		}
 	}
 	return num;
 }
@@ -124,22 +126,14 @@ void prepNextIteration() {
 	_iterations++;
 	_is_steady = isPlateSteady();
 	if (!_is_steady) swapPlates();
-	fprintf(fp, "%d,\n", getNumOverInPlate(THRESHOLD));
 }
 
 void* createSteadyStateSection(void* arg) {
 	int tid = (int)(uintptr_t)arg;
-	printf("createSteadyStateSection in thread %d\n", tid);
 
-	while (!_is_steady && _iterations < 500) {
-		advanceSection(tid);
-		_is_section_steady[tid] = isSectionSteady(tid);
-		_above_threshold[tid] = getNumOverInSection(tid, THRESHOLD);
-
-		pthread_barrier_wait(&_barr);
-		if (!tid) prepNextIteration();
-		pthread_barrier_wait(&_barr);
-	}
+	advanceSection(tid);
+	_is_section_steady[tid] = isSectionSteady(tid);
+	_above_threshold[tid] = getNumOverInSection(tid, THRESHOLD);
 	
 	return 0;
 }
@@ -147,12 +141,17 @@ void* createSteadyStateSection(void* arg) {
 void createSteadyState() {
 	int thread;
 
-	for (thread = 0; thread < _nthreads; thread++) {
-		pthread_create(&threadstructs[thread], 0, createSteadyStateSection, (void *)(uintptr_t)thread);
-	}
+	while (!_is_steady && _iterations < 500) {
 
-	for (thread = 0; thread < _nthreads; thread++) {
-		pthread_join(threadstructs[thread], 0);
+		for (thread = 0; thread < _nthreads; thread++) {
+			pthread_create(&threadstructs[thread], 0, createSteadyStateSection, (void *)(uintptr_t)thread);
+		}
+
+		for (thread = 0; thread < _nthreads; thread++) {
+			pthread_join(threadstructs[thread], 0);
+		}
+
+		prepNextIteration();
 	}
 
 	if (_iterations % 2 == 1) swapPlates();
@@ -188,8 +187,6 @@ void cleanUpMemory() {
 	free(_above_threshold);
 
 	pthread_barrier_destroy(&_barr);
-
-	fclose(fp);
 }
 
 void setUp() {
@@ -205,8 +202,6 @@ void setUp() {
 	initBarrierArrays();
 
 	pthread_barrier_init(&_barr, _attr, _nthreads);
-
-	fp = fopen("aboveThreshold.csv", "w");
 }
 
 int main(int argc, char* argv[]) {
